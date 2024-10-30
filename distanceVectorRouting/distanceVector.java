@@ -137,7 +137,7 @@ public class distanceVector {
             Scanner scanner = new Scanner(System.in)) {
                 while (true) {
                     String command = scanner.nextLine();
-                    // TODO: Implement command processing (update, step, display, etc.)
+                    //TODO: implement command processing (update, step, display, etc.)
                     
                 }
             }

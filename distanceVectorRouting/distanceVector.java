@@ -12,7 +12,7 @@ import java.util.Scanner;
 /**
  * main class for Distance Vector Routing implementation
  */
-public class dv {
+public class distanceVector {
     private int serverId;
     private String serverIp;
     private int serverPort;
@@ -22,7 +22,7 @@ public class dv {
  
    
     // constructor
-    public dv(String topologyFile, int updateInterval) {
+    public distanceVector(String topologyFile, int updateInterval) {
         
         //TODO: implement server initialization
         initializeServer();
@@ -61,14 +61,14 @@ public class dv {
         // first argument must be "-t" (topology file flag)
         // third argument must be "-i" (interval flag)
         if (args.length != 4 || !args[0].equals("-t") || !args[2].equals("-i")) {
-            System.out.println("Usage: java dv -t <topology-file-name> -i <routing-update-interval>");
+            System.out.println("Usage: java distanceVector -t <topology-file-name> -i <routing-update-interval>");
             System.exit(1);
         }
         
         String topologyFile = args[1];
         int updateInterval = Integer.parseInt(args[3]);
         
-        dv server = new dv(topologyFile, updateInterval);
+        distanceVector server = new distanceVector(topologyFile, updateInterval);
         server.start();
     }
 }

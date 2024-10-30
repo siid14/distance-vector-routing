@@ -133,12 +133,13 @@ public class distanceVector {
             listenThread.setDaemon(true);
             listenThread.start();
             
-            // start command line interface
-            Scanner scanner = new Scanner(System.in);
-            while (true) {
-                String command = scanner.nextLine();
-                // TODO: Implement command processing (update, step, display, etc.)
-                
+            try (// start command line interface
+            Scanner scanner = new Scanner(System.in)) {
+                while (true) {
+                    String command = scanner.nextLine();
+                    // TODO: Implement command processing (update, step, display, etc.)
+                    
+                }
             }
         } catch (Exception e) {
             System.err.println("Server error: " + e.getMessage());

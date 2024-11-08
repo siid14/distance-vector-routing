@@ -150,19 +150,58 @@ public class distanceVector {
     }
 
     public static void main(String[] args) {
-        // * validate command line arguments:
-        // must have exactly 4 arguments
-        // first argument must be "-t" (topology file flag)
-        // third argument must be "-i" (interval flag)
-        if (args.length != 4 || !args[0].equals("-t") || !args[2].equals("-i")) {
-            System.out.println("Usage: java distanceVector -t <topology-file-name> -i <routing-update-interval>");
+        // * Validate command line arguments:
+        // - must have exactly 4 arguments
+        // - first argument must be "-t" (topology file flag)
+        // - third argument must be "-i" (interval flag)
+        if (args.length != 4) {
+            System.err.println("Error: Incorrect number of arguments");
+            printUsage();
             System.exit(1);
         }
-        
+    
+        if (!args[0].equals("-t")) {
+            System.err.println("Error: First argument must be -t");
+            printUsage();
+            System.exit(1);
+        }
+    
+        if (!args[2].equals("-i")) {
+            System.err.println("Error: Third argument must be -i");
+            printUsage();
+            System.exit(1);
+        }
+    
         String topologyFile = args[1];
-        int updateInterval = Integer.parseInt(args[3]);
-        
-        distanceVector server = new distanceVector(topologyFile, updateInterval);
-        server.start();
+        int updateInterval;
+    
+        try {
+            updateInterval = Integer.parseInt(args[3]);
+            if (updateInterval <= 0) {
+                throw new NumberFormatException("Update interval must be positive");
+            }
+        } catch (NumberFormatException e) {
+            System.err.println("Error: Invalid update interval - must be a positive integer");
+            printUsage();
+            System.exit(1);
+            return;
+        }
+    
+        try {
+            // create and start the server
+            distanceVector server = new distanceVector(topologyFile, updateInterval);
+            server.start();
+        } catch (Exception e) {
+            System.err.println("Error starting server: " + e.getMessage());
+            System.exit(1);
+        }
+    }
+    
+    private static void printUsage() {
+        System.out.println("Usage: server -t <topology-file-name> -i <routing-update-interval>");
+        System.out.println("  -t : topology file flag");
+        System.out.println("  <topology-file-name> : name of the file containing network topology");
+        System.out.println("  -i : update interval flag");
+        System.out.println("  <routing-update-interval> : time between routing table updates in seconds");
     }
 }

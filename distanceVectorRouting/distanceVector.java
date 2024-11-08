@@ -150,19 +150,69 @@ public class distanceVector {
     }
 
     public static void main(String[] args) {
-        // * validate command line arguments:
-        // must have exactly 4 arguments
-        // first argument must be "-t" (topology file flag)
-        // third argument must be "-i" (interval flag)
-        if (args.length != 4 || !args[0].equals("-t") || !args[2].equals("-i")) {
-            System.out.println("Usage: java distanceVector -t <topology-file-name> -i <routing-update-interval>");
+        // * Validate command line arguments:
+        // - must have exactly 4 arguments
+        // - first argument must be "-t" (topology file flag)
+        // - third argument must be "-i" (interval flag)
+
+        // check if we have the correct number of arguments
+        // we need exactly 4 args: -t, topology filename, -i, and update interval
+        if (args.length != 4) {
+            System.err.println("Error: Incorrect number of arguments");
+            printUsage();
             System.exit(1);
         }
-        
+    
+        // validate the topology file flag (-t)
+        // first argument must be "-t" to specify the topology file
+        if (!args[0].equals("-t")) {
+            System.err.println("Error: First argument must be -t");
+            printUsage();
+            System.exit(1);
+        }
+    
+        // validate the update interval flag (-i)
+        // third argument must be "-i" to specify the update interval
+        if (!args[2].equals("-i")) {
+            System.err.println("Error: Third argument must be -i");
+            printUsage();
+            System.exit(1);
+        }
+    
+        // get the topology file path from second argument
         String topologyFile = args[1];
-        int updateInterval = Integer.parseInt(args[3]);
-        
-        distanceVector server = new distanceVector(topologyFile, updateInterval);
-        server.start();
+        int updateInterval;
+    
+        // parse and validate the update interval
+        // must be a positive integer representing seconds between updates
+        try {
+            updateInterval = Integer.parseInt(args[3]);
+            // ensure the interval is positive
+            if (updateInterval <= 0) {
+                throw new NumberFormatException("Update interval must be positive");
+            }
+        } catch (NumberFormatException e) {
+            System.err.println("Error: Invalid update interval - must be a positive integer");
+            printUsage();
+            System.exit(1);
+            return;
+        }
+    
+        // initialize and start the server
+        try {
+            distanceVector server = new distanceVector(topologyFile, updateInterval);
+            server.start();
+        } catch (Exception e) {
+            System.err.println("Error starting server: " + e.getMessage());
+            System.exit(1);
+        }
+    }
+    
+    private static void printUsage() {
+        System.out.println("Usage: server -t <topology-file-name> -i <routing-update-interval>");
+        System.out.println("  -t : topology file flag");
+        System.out.println("  <topology-file-name> : name of the file containing network topology");
+        System.out.println("  -i : update interval flag");
+        System.out.println("  <routing-update-interval> : time between routing table updates in seconds");
     }
 }

@@ -154,29 +154,40 @@ public class distanceVector {
         // - must have exactly 4 arguments
         // - first argument must be "-t" (topology file flag)
         // - third argument must be "-i" (interval flag)
+
+        // check if we have the correct number of arguments
+        // we need exactly 4 args: -t, topology filename, -i, and update interval
         if (args.length != 4) {
             System.err.println("Error: Incorrect number of arguments");
             printUsage();
             System.exit(1);
         }
     
+        // validate the topology file flag (-t)
+        // first argument must be "-t" to specify the topology file
         if (!args[0].equals("-t")) {
             System.err.println("Error: First argument must be -t");
             printUsage();
             System.exit(1);
         }
     
+        // validate the update interval flag (-i)
+        // third argument must be "-i" to specify the update interval
         if (!args[2].equals("-i")) {
             System.err.println("Error: Third argument must be -i");
             printUsage();
             System.exit(1);
         }
     
+        // get the topology file path from second argument
         String topologyFile = args[1];
         int updateInterval;
     
+        // parse and validate the update interval
+        // must be a positive integer representing seconds between updates
         try {
             updateInterval = Integer.parseInt(args[3]);
+            // ensure the interval is positive
             if (updateInterval <= 0) {
                 throw new NumberFormatException("Update interval must be positive");
             }
@@ -187,8 +198,8 @@ public class distanceVector {
             return;
         }
     
+        // initialize and start the server
         try {
-            // create and start the server
             distanceVector server = new distanceVector(topologyFile, updateInterval);
             server.start();
         } catch (Exception e) {

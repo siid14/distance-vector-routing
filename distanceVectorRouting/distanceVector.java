@@ -1,6 +1,8 @@
 package distanceVectorRouting;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -78,7 +80,47 @@ public class distanceVector {
             System.err.println("Error sending updates: " + e.getMessage());
         }
     }
-    
+
+     // create the update message in specified format
+    private byte[] createUpdateMessage() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(baos);
+        
+        // number of update fields (including self)
+        dos.writeShort(routingTable.size() + 1);
+        
+        // server port
+        dos.writeShort(serverPort);
+        
+        // server IP (4 bytes)
+        byte[] ipBytes = InetAddress.getByName(serverIp).getAddress();
+        dos.write(ipBytes);
+        
+        // add entry for self
+        dos.write(ipBytes);  // server IP
+        dos.writeShort(serverPort);  // server port
+        dos.writeShort(0);  // padding
+        dos.writeShort(serverId);  // sserver ID
+        dos.writeShort(0);  // cost to self = 0
+        
+        // add entries for all destinations
+        for (Map.Entry<Integer, Integer> entry : routingTable.entrySet()) {
+            int destId = entry.getKey();
+            if (destId != serverId) { // skip self as it's already added
+                ServerInfo destInfo = serverInfo.get(destId);
+                if (destInfo != null) {
+                    dos.write(InetAddress.getByName(destInfo.ip).getAddress());
+                    dos.writeShort(destInfo.port);
+                    dos.writeShort(0);  // padding
+                    dos.writeShort(destId);
+                    dos.writeShort(entry.getValue());
+                }
+            }
+        }
+        
+        return baos.toByteArray();
+    }
+
     // constructor
     public distanceVector(String topologyFile, int updateInterval) {
         this.updateInterval = updateInterval;

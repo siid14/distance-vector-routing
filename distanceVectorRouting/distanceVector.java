@@ -1,16 +1,23 @@
 package distanceVectorRouting;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.nio.ByteBuffer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicInteger;
+
 
 /**
  * main class for Distance Vector Routing implementation
@@ -25,6 +32,11 @@ public class distanceVector {
     private Map<Integer, Integer> neighbors;     // stores neighbor costs
     private int numServers;
     private int numNeighbors;
+    private Timer updateTimer;
+    private AtomicInteger packetsReceived = new AtomicInteger(0);
+    private Map<Integer, Long> lastUpdateTime = new HashMap<>(); // track last update time from each neighbor
+    private Map<Integer, Integer> routingTable = new HashMap<>(); // destination -> cost
+    private Map<Integer, Integer> nextHopTable = new HashMap<>(); // destination -> next Hop
 
     // store server information
     public static class ServerInfo{
@@ -35,6 +47,84 @@ public class distanceVector {
             this.ip = ip;
             this.port = port;
         }
+    }
+
+    // initialize periodic updates in constructor after loading topology
+    private void initializePeriodicUpdates() {
+        updateTimer = new Timer(true);
+        updateTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                sendDistanceVectorUpdates();
+                checkNeighborTimeout();
+            }
+        }, 0, updateInterval * 1000); // Convert seconds to milliseconds
+    }
+   
+    // Send updates to all neighbors
+    private void sendDistanceVectorUpdates() {
+        try {
+            byte[] updateMessage = createUpdateMessage();
+            
+            // Send to each neighbor
+            for (Map.Entry<Integer, Integer> neighbor : neighbors.entrySet()) {
+                int neighborId = neighbor.getKey();
+                ServerInfo neighborInfo = serverInfo.get(neighborId);
+                
+                if (neighborInfo != null) {
+                    DatagramPacket packet = new DatagramPacket(
+                        updateMessage,
+                        updateMessage.length,
+                        InetAddress.getByName(neighborInfo.ip),
+                        neighborInfo.port
+                    );
+                    serverSocket.send(packet);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error sending updates: " + e.getMessage());
+        }
+    }
+
+     // create the update message in specified format
+    private byte[] createUpdateMessage() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(baos);
+        
+        // number of update fields (including self)
+        dos.writeShort(routingTable.size() + 1);
+        
+        // server port
+        dos.writeShort(serverPort);
+        
+        // server IP (4 bytes)
+        byte[] ipBytes = InetAddress.getByName(serverIp).getAddress();
+        dos.write(ipBytes);
+        
+        // add entry for self
+        dos.write(ipBytes);  // server IP
+        dos.writeShort(serverPort);  // server port
+        dos.writeShort(0);  // padding
+        dos.writeShort(serverId);  // sserver ID
+        dos.writeShort(0);  // cost to self = 0
+        
+        // add entries for all destinations
+        for (Map.Entry<Integer, Integer> entry : routingTable.entrySet()) {
+            int destId = entry.getKey();
+            if (destId != serverId) { // skip self as it's already added
+                ServerInfo destInfo = serverInfo.get(destId);
+                if (destInfo != null) {
+                    dos.write(InetAddress.getByName(destInfo.ip).getAddress());
+                    dos.writeShort(destInfo.port);
+                    dos.writeShort(0);  // padding
+                    dos.writeShort(destId);
+                    dos.writeShort(entry.getValue());
+                }
+            }
+        }
+        
+        return baos.toByteArray();
+
     }
 
     // constructor

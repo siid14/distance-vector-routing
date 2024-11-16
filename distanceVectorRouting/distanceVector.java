@@ -59,10 +59,11 @@ public class distanceVector {
     // Send updates to all neighbors
     private void sendDistanceVectorUpdates() {
         try {
-            byte[] updateMessage = createUpdateMessage();
+            byte[] updateMessage = createUpdateMessage(); // create message once
             
-            // Send to each neighbor
+            // send same message to each neighbor
             for (Map.Entry<Integer, Integer> neighbor : neighbors.entrySet()) {
+                 // create and send UDP packet to this neighbor
                 int neighborId = neighbor.getKey();
                 ServerInfo neighborInfo = serverInfo.get(neighborId);
                 

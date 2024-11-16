@@ -274,9 +274,17 @@ public class distanceVector {
                                 System.out.println("Usage: update <server ID 1> <server ID 2> <Link Cost>");
                                 break;
                             }
-                            int serverId1 = Integer.parseInt(parts[1]);
-                            int serverId2 = Integer.parseInt(parts[2]);
-                            int linkCost = Integer.parseInt(parts[3]);
+                            try{
+                                int serverId1 = Integer.parseInt(parts[1]);
+                                int serverId2 = Integer.parseInt(parts[2]);
+                                int linkCost = parts[3].equalsIgnoreCase("inf") 
+                       ? Integer.MAX_VALUE 
+                       : Integer.parseInt(parts[3]);
+                       handleUpdateCommand(serverId1, serverId2, linkCost);
+                            }catch(NumberFormatException e){
+                                System.out.println("Invalid input. Link cost must be a number or 'inf'.");
+                            }
+                           
                             break;
                         case "step":
                             break;
@@ -336,6 +344,37 @@ public class distanceVector {
                 System.out.printf("%11d | %8d | %4d%n", dest, nextHop, cost);
             });
     }
+    private void handleUpdateCommand(int serverId1, int serverId2, int linkCost) {
+        if (serverId1 != serverId) {
+            System.out.println("Error: This server (" + serverId + ") is not server " + serverId1 + ".");
+            return;
+        }
+    
+        if (!neighbors.containsKey(serverId2)) {
+            System.out.println("Error: Server " + serverId2 + " is not a neighbor.");
+            return;
+        }
+    
+        // Update the link cost
+        if (linkCost == Integer.MAX_VALUE) {
+            System.out.println("Disabling link to server " + serverId2 + ".");
+        } else {
+            System.out.println("Updating link cost to server " + serverId2 + " to " + linkCost + ".");
+        }
+        neighbors.put(serverId2, linkCost);
+    
+        // Recalculate the routing table
+        // recalculateRoutingTable();
+    
+        // Send updated distance vector to neighbors
+        sendDistanceVectorUpdates();
+    
+        System.out.println("update SUCCESS");
+    }
+    
+
+
+
     public static void main(String[] args) {
         // * Validate command line arguments:
         // - must have exactly 4 arguments

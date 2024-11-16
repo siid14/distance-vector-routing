@@ -11,9 +11,13 @@ import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
+import java.nio.ByteBuffer;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
+
 
 /**
  * main class for Distance Vector Routing implementation
@@ -42,7 +46,8 @@ public class distanceVector {
         ServerInfo(String ip, int port){
             this.ip = ip;
             this.port = port;
-    }}
+        }
+    }
 
     // initialize periodic updates in constructor after loading topology
     private void initializePeriodicUpdates() {
@@ -120,6 +125,7 @@ public class distanceVector {
         }
         
         return baos.toByteArray();
+
     }
 
     // constructor
@@ -133,7 +139,38 @@ public class distanceVector {
 
         initializeServer();
     }
+
+    // converts IPs for generateUpdatePacket
+    private int convertIPtoNumber(String ip) {
+        try {
+            InetAddress i = InetAddress.getByName(ip);
+            int intIP = ByteBuffer.wrap(i.getAddress()).getInt();
+            return intIP;
+        } catch(UnknownHostException e) {
+            System.out.println("There is no host ip.");
+            return 0;
+        }
+    }
     
+    // message format
+    private DatagramPacket generateUpdatePacket(InetAddress address, int port) {
+        ByteBuffer buffer = ByteBuffer.allocate(20*numServers);
+        buffer.putShort((short)numServers);
+        buffer.putShort((short)serverPort);
+        buffer.putInt(convertIPtoNumber(serverIp));
+        for (Map.Entry<Integer,ServerInfo> bufEntry : serverInfo.entrySet()) {
+            int serverID = bufEntry.getKey();
+            ServerInfo serverInfo = bufEntry.getValue();
+
+            buffer.putInt(convertIPtoNumber(serverInfo.ip));
+            buffer.putShort((short)serverInfo.port);
+            buffer.putShort((short)serverID);
+            int cost = neighbors.get(serverID);
+            buffer.putInt(cost);
+        }
+        byte[] data = buffer.array();
+        return new DatagramPacket(data, data.length, address, port);
+    }
     
     private void initializeServer() {
         try {

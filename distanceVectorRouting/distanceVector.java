@@ -262,11 +262,48 @@ public class distanceVector {
             try (// start command line interface
             Scanner scanner = new Scanner(System.in)) {
                 while (true) {
-                    String command = scanner.nextLine();
-                    //TODO: implement command processing (update, step, display, etc.)
+                    System.out.print("Enter command >> ");
+                    String command = scanner.nextLine().trim();
+                    String[] parts = command.split(" ");
+                    String action = parts[0].toLowerCase();
+                    switch (action) {
+                        case "help":
+                            displayHelp();
+                            break;
+                        case "update":
+                            if (parts.length != 4) {
+                                System.out.println("Usage: update <server ID 1> <server ID 2> <Link Cost>");
+                                break;
+                            }
+                            int serverId1 = Integer.parseInt(parts[1]);
+                            int serverId2 = Integer.parseInt(parts[2]);
+                            int linkCost = Integer.parseInt(parts[3]);
+                            break;
+                        case "step":
+                            break;
+                        case "packets":
+                            break;
+                        case "display":
+                            break;
+                        case "disable":
+                            if (parts.length != 2) {
+                                System.out.println("Usage: disable <server ID>");
+                                break;
+                            }
+                            int disableServerId = Integer.parseInt(parts[1]);
+                            break;
+                        case "crash":
+                            break;
+                        default:
+                            System.out.println("Unknown command. Here's the list of commands");
+                            displayHelp();
+                            break;
+                    }
                     
                 }
+
             }
+            
         } catch (Exception e) {
             System.err.println("Server error: " + e.getMessage());
             if (serverSocket != null) {
@@ -274,7 +311,19 @@ public class distanceVector {
             }
         }
     }
-
+    private void displayHelp(){
+        System.out.println("Information about built in commands: \n\n");
+        System.out.println("\thelp: Displays information about the available user interface options or manual.\n");
+        System.out.println("\tupdate <server-ID1> <server-ID2> <Link Cost>: server-ID1, server-ID2: The link for which the cost is being updated.\n" + //
+                        "Link Cost: It specifies the new link cost between the source and the destination server. Note\n" + //
+                        "that this command will be issued to both server-ID1 and server-ID2 and involve them to\n" + //
+                        "update the cost and no other server.\n");
+        System.out.println("\tstep: Send routing update to neighbors right away. Note that except this, routing updates only happen periodically.\n");
+        System.out.println("\tpackets: Display the number of distance vector packets this server has received since the last invocation of this information\n");
+        System.out.println("\tdisplay: Display the current routing table. And the table should be displayed in a sorted order from small ID to big.\n");
+        System.out.println("\tdisable <server-ID>: Disable the link to a given server. Doing this “closes” the connection to a given server with server-ID. Here you need to check if the given server is its neighbor\n");
+        System.out.println("\tcrash: Close” all connections. This is to simulate server crashes. Close all connections on all links. The neighboring servers must handle this close correctly and set the link cost to infinity.\n");
+    }
     public static void main(String[] args) {
         // * Validate command line arguments:
         // - must have exactly 4 arguments

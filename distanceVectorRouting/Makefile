@@ -4,30 +4,24 @@ JC = javac
 # Java runtime
 JAVA = java
 
-# Source directory
-SRCDIR = src
-
 # Build directory
 BUILDDIR = bin
 
-# Package name
-PACKAGE = distanceVectorRouting
-
 # Main class
-MAIN = dv
+MAIN = distanceVector
 
 # Source files
-SOURCES = $(SRCDIR)/$(PACKAGE)/$(MAIN).java
+SOURCES = $(MAIN).java
 
 # Class files
-CLASSES = $(BUILDDIR)/$(PACKAGE)/$(MAIN).class
+CLASSES = $(BUILDDIR)/$(MAIN).class
 
 # Default target
 all: $(BUILDDIR) $(CLASSES)
 
 # Create build directory if it doesn't exist
 $(BUILDDIR):
-	mkdir -p $(BUILDDIR)/$(PACKAGE)
+	mkdir -p $(BUILDDIR)
 
 # Compile Java files
 $(CLASSES): $(SOURCES)
@@ -41,7 +35,7 @@ clean:
 # Usage: make run TOPO=<topology-file> INTERVAL=<update-interval>
 # Example: make run TOPO=topology1.txt INTERVAL=10
 run: $(CLASSES)
-	$(JAVA) -cp $(BUILDDIR) $(PACKAGE).$(MAIN) -t $(TOPO) -i $(INTERVAL)
+	$(JAVA) -cp $(BUILDDIR) distanceVectorRouting.$(MAIN) -t $(TOPO) -i $(INTERVAL)
 
 # Help target
 help:

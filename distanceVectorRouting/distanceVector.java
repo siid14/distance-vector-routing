@@ -62,15 +62,21 @@ public class distanceVector {
     }
 
     private void checkNeighborTimeout() {
+        // get current time to be compare with the last update times
         long currentTime = System.currentTimeMillis();
         long timeout = updateInterval * 3000; // 3 intervals in milliseconds
         
+        // check each known neighbor
         for (int neighborId : neighbors.keySet()) {
-            Long lastUpdate = lastUpdateTime.get(neighborId);
+             // get last time we received an update from this neighbor
+             Long lastUpdate = lastUpdateTime.get(neighborId);
+
+             // if we have record of last update AND time since last update exceeds timeout
             if (lastUpdate != null && currentTime - lastUpdate > timeout) {
-                // Neighbor timed out, set cost to infinity
+                 // mark neighbor as unreachable by setting cost to infinity
                 routingTable.put(neighborId, Integer.MAX_VALUE);
-                // Propagate changes
+                // notify other neighbors about this change by sending routing updates
+                // they may be using this now-unreachable neighbor as part of their paths
                 sendDistanceVectorUpdates();
             }
         }

@@ -416,8 +416,10 @@ public class distanceVector {
                                 break;
                             }
                             int disableServerId = Integer.parseInt(parts[1]);
+                            handleDisable(disableServerId);
                             break;
                         case "crash":
+                            handleCrash();
                             break;
                         default:
                             System.out.println("Unknown command. Here's the list of commands");
@@ -461,6 +463,43 @@ public class distanceVector {
                 System.out.printf("%11d | %8d | %4d%n", dest, nextHop, cost);
             });
     }
+
+    private void handleDisable(int disableServerId) {
+        // * FIRST VERIFY IF THE SERVE IS A NEIGHBOR
+        // check if disableServerId exists in neighbors map
+        if (!neighbors.containsKey(disableServerId)) {
+            // if not a neighbor, can't disable connection
+            System.out.println("disable FAILED: Not a neighbor");
+            return;
+        }
+    
+        // * IF ITS A NEIGHBOR, DISABLE THE LINK
+        // Set cost in routing table to infinity (unreachable)
+        routingTable.put(disableServerId, Integer.MAX_VALUE);
+
+        // keep neighbor but set cost to infinity
+        // this maintains record of neighbor but marks link as unusable
+        neighbors.put(disableServerId, Integer.MAX_VALUE);  
+        
+        System.out.println("disable SUCCESS");
+    }
+
+    private void handleCrash() {
+        // set all link costs to infinity for neighbors to detect
+        for (int neighborId : neighbors.keySet()) {
+            routingTable.put(neighborId, Integer.MAX_VALUE);
+            neighbors.put(neighborId, Integer.MAX_VALUE);
+        }
+        
+        // close the socket to simulate crash
+        if (serverSocket != null) {
+            serverSocket.close();
+        }
+        
+        System.out.println("crash SUCCESS");
+        System.exit(0); 
+    }
+
     public static void main(String[] args) {
         // * Validate command line arguments:
         // - must have exactly 4 arguments

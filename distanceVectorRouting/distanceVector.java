@@ -56,7 +56,7 @@ public class distanceVector {
             @Override
             public void run() {
                 sendDistanceVectorUpdates();
-                checkNeighborTimeout();
+               // checkNeighborTimeout();
             }
         }, 0, updateInterval * 1000); // Convert seconds to milliseconds
     }
@@ -284,6 +284,7 @@ public class distanceVector {
                         case "packets":
                             break;
                         case "display":
+                            displayRoutingTable();
                             break;
                         case "disable":
                             if (parts.length != 2) {
@@ -323,6 +324,18 @@ public class distanceVector {
         System.out.println("\tdisplay: Display the current routing table. And the table should be displayed in a sorted order from small ID to big.\n");
         System.out.println("\tdisable <server-ID>: Disable the link to a given server. Doing this “closes” the connection to a given server with server-ID. Here you need to check if the given server is its neighbor\n");
         System.out.println("\tcrash: Close” all connections. This is to simulate server crashes. Close all connections on all links. The neighboring servers must handle this close correctly and set the link cost to infinity.\n");
+    }
+
+    private void displayRoutingTable() {
+        System.out.println("Routing Table:");
+        System.out.println("Destination | Next Hop | Cost");
+        routingTable.keySet().stream()
+            .sorted()
+            .forEach(dest -> {
+                int nextHop = nextHopTable.get(dest);
+                int cost = routingTable.get(dest);
+                System.out.printf("%11d | %8d | %4d%n", dest, nextHop, cost);
+            });
     }
     public static void main(String[] args) {
         // * Validate command line arguments:

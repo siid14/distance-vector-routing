@@ -388,7 +388,7 @@ public class distanceVector {
                         case "help":
                             displayHelp();
                             break;
-                        case "update":
+                        case "update": // update link costs
                             if (parts.length != 4) {
                                 System.out.println("Usage: update <server ID 1> <server ID 2> <Link Cost>");
                                 break;
@@ -397,14 +397,14 @@ public class distanceVector {
                             int serverId2 = Integer.parseInt(parts[2]);
                             int linkCost = Integer.parseInt(parts[3]);
                             break;
-                        case "step":
+                        case "step": // force immediate updatesv
                             break;
-                        case "packets":
+                        case "packets": // show received packet count
                             break;
-                        case "display":
+                        case "display": // disable specific link
                             displayRoutingTable();
                             break;
-                        case "disable":
+                        case "disable": // simulate server crash
                             if (parts.length != 2) {
                                 System.out.println("Usage: disable <server ID>");
                                 break;

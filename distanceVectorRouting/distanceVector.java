@@ -62,6 +62,7 @@ public class distanceVector {
     }
 
     private void checkNeighborTimeout() {
+        System.out.println("Checking neighbor timeouts");
         // get current time to be compare with the last update times
         long currentTime = System.currentTimeMillis();
         long timeout = updateInterval * 3000; // 3 intervals in milliseconds
@@ -73,6 +74,8 @@ public class distanceVector {
 
              // if we have record of last update AND time since last update exceeds timeout
             if (lastUpdate != null && currentTime - lastUpdate > timeout) {
+                System.out.println("Server " + neighborId + " timed out. Last update: " + 
+                (currentTime - lastUpdate)/1000 + " seconds ago");
                  // mark neighbor as unreachable by setting cost to infinity
                 routingTable.put(neighborId, Integer.MAX_VALUE);
                 // notify other neighbors about this change by sending routing updates
@@ -86,6 +89,7 @@ public class distanceVector {
     // Send updates to all neighbors
     private void sendDistanceVectorUpdates() {
         try {
+            System.out.println("Sending updates to neighbors: " + neighbors);
             byte[] updateMessage = createUpdateMessage(); // create message once
             
             // send same message to each neighbor
@@ -104,6 +108,7 @@ public class distanceVector {
                     serverSocket.send(packet);
                 }
             }
+            System.out.println("Updates sent successfully");
         } catch (IOException e) {
             System.err.println("Error sending updates: " + e.getMessage());
         }
@@ -198,7 +203,9 @@ public class distanceVector {
         try {
             // create UDP socket bound to this server's port
             serverSocket = new DatagramSocket(serverPort);
-            System.out.println("Server " + serverId + " started on " + serverIp + ":" + serverPort);
+            System.out.println("Server " + serverId + " initialized");
+            System.out.println("Initial neighbors: " + neighbors);
+            System.out.println("Initial routing table: " + routingTable);
         } catch (Exception e) {
             System.err.println("Failed to initialize server: " + e.getMessage());
             System.exit(1);
@@ -364,8 +371,14 @@ public class distanceVector {
                     // this ensures first path to new destination is always accepted
                     if (currentCost == null) currentCost = Integer.MAX_VALUE;
                     
+                    System.out.println("Route update - via: " + viaNode + 
+                    ", to: " + destNode + 
+                    ", cost: " + receivedCost);
                     // Bellman-Ford - if new path is cheaper than current path
                     if (newCost < currentCost) {
+                        System.out.println("Route improved - New cost: " + newCost + 
+                          " (previous: " + currentCost + ")");
+
                         // update routing table with new, lower cost to destination
                         routingTable.put(destNode, newCost);
                         
@@ -465,6 +478,7 @@ public class distanceVector {
     }
 
     private void handleDisable(int disableServerId) {
+        System.out.println("Disabling connection to server " + disableServerId);
         // * FIRST VERIFY IF THE SERVE IS A NEIGHBOR
         // check if disableServerId exists in neighbors map
         if (!neighbors.containsKey(disableServerId)) {
@@ -480,11 +494,15 @@ public class distanceVector {
         // keep neighbor but set cost to infinity
         // this maintains record of neighbor but marks link as unusable
         neighbors.put(disableServerId, Integer.MAX_VALUE);  
+
+        System.out.println("Updated routing table: " + routingTable);
+        System.out.println("Updated neighbors: " + neighbors);
         
         System.out.println("disable SUCCESS");
     }
 
     private void handleCrash() {
+        System.out.println("Initiating server crash");
         // set all link costs to infinity for neighbors to detect
         for (int neighborId : neighbors.keySet()) {
             routingTable.put(neighborId, Integer.MAX_VALUE);
@@ -496,6 +514,7 @@ public class distanceVector {
             serverSocket.close();
         }
         
+        System.out.println("Final routing table: " + routingTable);
         System.out.println("crash SUCCESS");
         System.exit(0); 
     }

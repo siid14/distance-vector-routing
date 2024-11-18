@@ -56,10 +56,26 @@ public class distanceVector {
             @Override
             public void run() {
                 sendDistanceVectorUpdates();
-               // checkNeighborTimeout();
+                checkNeighborTimeout();
             }
-        }, 0, updateInterval * 1000); // Convert seconds to milliseconds
+        }, 0, updateInterval * 1000);
     }
+
+    private void checkNeighborTimeout() {
+        long currentTime = System.currentTimeMillis();
+        long timeout = updateInterval * 3000; // 3 intervals in milliseconds
+        
+        for (int neighborId : neighbors.keySet()) {
+            Long lastUpdate = lastUpdateTime.get(neighborId);
+            if (lastUpdate != null && currentTime - lastUpdate > timeout) {
+                // Neighbor timed out, set cost to infinity
+                routingTable.put(neighborId, Integer.MAX_VALUE);
+                // Propagate changes
+                sendDistanceVectorUpdates();
+            }
+        }
+    }
+    
    
     // Send updates to all neighbors
     private void sendDistanceVectorUpdates() {
@@ -136,8 +152,8 @@ public class distanceVector {
 
         // load topology first to get server informations
         loadTopology(topologyFile);
-
         initializeServer();
+        initializePeriodicUpdates();
     }
 
     // converts IPs for generateUpdatePacket
@@ -186,49 +202,57 @@ public class distanceVector {
   
     private void loadTopology(String filename) {
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
-        // read number of servers and neighbors
-        numServers = Integer.parseInt(reader.readLine().trim());
-        numNeighbors = Integer.parseInt(reader.readLine().trim());
-        
-        // read server information
-        for (int i = 0; i < numServers; i++) {
-            String[] parts = reader.readLine().trim().split(" ");
-            int id = Integer.parseInt(parts[0]);
-            String ip = parts[1];
-            int port = Integer.parseInt(parts[2]);
+            // * 1 READ NUMBER OF SERVERS AND NEIGHBORS
+            numServers = Integer.parseInt(reader.readLine().trim());
+            numNeighbors = Integer.parseInt(reader.readLine().trim());
             
-            // store server information
-            serverInfo.put(id, new ServerInfo(ip, port));
-            
-            // if this is our server information, save it
-            if (i == 0) {  // Assuming this server info is first in the file
-                serverId = id;
-                serverIp = ip;
-                serverPort = port;
+            // * 2 READ ALL SERVER INFORMATION
+            for (int i = 0; i < numServers; i++) {
+                String[] parts = reader.readLine().trim().split(" ");
+                int id = Integer.parseInt(parts[0]);
+                String ip = parts[1];
+                int port = Integer.parseInt(parts[2]);
+                
+                // store server information
+                serverInfo.put(id, new ServerInfo(ip, port));
+                
+                // if this is our server information, save it
+                if (i == 0) {
+                    serverId = id;
+                    serverIp = ip;
+                    serverPort = port;
+                }
             }
-        }
-        
-        // read neighbor information
-        for (int i = 0; i < numNeighbors; i++) {
-            String[] parts = reader.readLine().trim().split(" ");
-            int server1 = Integer.parseInt(parts[0]);
-            int server2 = Integer.parseInt(parts[1]);
-            int cost = Integer.parseInt(parts[2]);
             
-            // only store if this server is involved
-            if (server1 == serverId) {
-                neighbors.put(server2, cost);
+            // * 3 READ NEIGHBOR INFORMATION
+            for (int i = 0; i < numNeighbors; i++) {
+                String[] parts = reader.readLine().trim().split(" ");
+                int server1 = Integer.parseInt(parts[0]);
+                int server2 = Integer.parseInt(parts[1]);
+                int cost = Integer.parseInt(parts[2]);
+                
+                // only store if this server is involved
+                if (server1 == serverId) {
+                    neighbors.put(server2, cost);
+                }
             }
+            
+            // * 4 INITIALIZE ROUTING TABLE (after loading topology)
+            for (Map.Entry<Integer, Integer> entry : neighbors.entrySet()) {
+                routingTable.put(entry.getKey(), entry.getValue());
+                nextHopTable.put(entry.getKey(), entry.getKey());
+            }
+            // add self with cost 0
+            routingTable.put(serverId, 0);
+            nextHopTable.put(serverId, serverId);
+            
+            System.out.println("Topology loaded successfully");
+            
+        } catch (IOException e) {
+            System.err.println("Error loading topology: " + e.getMessage());
+            System.exit(1);
         }
-        
-        System.out.println("Topology loaded successfully");
-        
-    } catch (IOException e) {
-        System.err.println("Error loading topology: " + e.getMessage());
-        System.exit(1);
     }
-}
-    
     
     private void listenForMessages() {
         try {

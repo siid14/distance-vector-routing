@@ -232,24 +232,118 @@ public class distanceVector {
     
     private void listenForMessages() {
         try {
+
+            
+            // create buffer and packet for receiving messages (data)
             byte[] receiveBuffer = new byte[1024];
             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
             
-            while (true) {
-                // wait for and receive packet
+            while (true) { // continuously listen for messages
+                // * 1 LISTEN - WAIT FOR AND RECEIVE INCOMING MESSAGES
+                // wait until a packet is received
                 serverSocket.receive(receivePacket);
                 
-                // process received data
-                String received = new String(receivePacket.getData(), 0, receivePacket.getLength());
-                System.out.println("RECEIVED A MESSAGE FROM SERVER " + 
-                    receivePacket.getAddress().getHostAddress() + ":" + receivePacket.getPort());
+                // count rceived packets for 'packets' command
+                packetsReceived.incrementAndGet();
+
+                // * 2 GET MESSAGE DATA - CONVERRT DATA TO READABLE FORMAT
+                // convert received data into ByteBuffer for easier parsing
+                ByteBuffer buffer = ByteBuffer.wrap(receivePacket.getData(), 0, receivePacket.getLength());
                 
-                // TODO: implement proper message processing
-            }
-        } catch (IOException e) {
-            System.err.println("Error receiving message: " + e.getMessage());
-        }
+                try {
+                    // * 3 READ MESSAGE HEADER - GET SENDER INFO
+                    // parse message header according to specific format
+
+                    // first 2 bytes: number of updates i this msg
+                    short numUpdates = buffer.getShort();
+
+                    // next 2bytes: sender port number
+                    short senderPort = buffer.getShort();
+
+                    // next 4 bytes: sender IP address
+                    byte[] ipBytes = new byte[4];
+                    buffer.get(ipBytes);
+                    InetAddress senderIP = InetAddress.getByAddress(ipBytes);
+                    
+                    // * 4 IDENTIFY SENDER - COMPARE WITH KNOWN SERVERS
+                    // find which server sent this message by matching IP and port
+                    int senderId = -1;
+                    for (Map.Entry<Integer, ServerInfo> entry : serverInfo.entrySet()) {
+
+                        // check if this server's port and IP match the sender's
+                        if (entry.getValue().port == senderPort && // compare ports
+                            entry.getValue().ip.equals(senderIP.getHostAddress())) { // compare IP addresses
+                            
+                            // if we found a match, store the server ID and exit loop
+                            senderId = entry.getKey();  // get the ID of the sending server
+                            break; // no need to check other servers
+                        }
+                    }
+
+                    // * 5 PROCESS MESSAGE - IF SERVER FOUND -> PROCESS MESSAGE UDPATE
+                    if (senderId != -1) {  // If we found the sender
+                        // print required message
+                        System.out.println("RECEIVED A MESSAGE FROM SERVER " + senderId);
+                        
+                        // update timestamp for neighbor timeout detection
+                        lastUpdateTime.put(senderId, System.currentTimeMillis());
+                        
+                        // * 6 READ UPDATES MSG - PROCESS EACH UPDATE IN THE MESSAGE
+                        // process each update in the message
+                        for (int i = 0; i < numUpdates; i++) {
+                            // read destination server information:
+                            buffer.get(ipBytes);           // IP address (4 bytes)
+                            short destPort = buffer.getShort();  // port (2 bytes)
+                            buffer.getShort();             // skip padding (2 bytes)
+                            short destId = buffer.getShort();    // server ID (2 bytes)
+                            short cost = buffer.getShort();      // cost (2 bytes)
+
+
+                            // * 7 APPLY BELLMAN-FORD EQUATION - UPDATE ROUTING TABLE
+                            updateRoutingTable(senderId, destId, cost);
+                             
+                                }
+                            }
+                        } catch (Exception e) {
+                            System.err.println("Error processing message: " + e.getMessage());
+                        }
+                    }
+                } catch (IOException e) {
+                    System.err.println("Error receiving message: " + e.getMessage());
+                }
     }
+
+                // * 8 BELLMAN-FORD: Update routing if better path found
+                private void updateRoutingTable(int viaNode, int destNode, int receivedCost) {
+                    // get the cost to reach the neighbor (viaNode) from our routing table
+                    // viaNode: the server that sent us the update
+                    Integer costToVia = neighbors.get(viaNode);
+                    
+                    // if this node isn't our neighbor, ignore the update
+                    // this prevents updates from non-neighboring nodes
+                    if (costToVia == null) return;
+                    
+                    // calculate total cost to reach destNode through viaNode
+                    // total cost = (our cost to reach neighbor) + (neighbor's cost to reach destination)
+                    int newCost = costToVia + receivedCost;  
+                    
+                    // get our current known cost to reach destNode
+                    Integer currentCost = routingTable.get(destNode);
+                    
+                    // if we never seen this destination before, set current cost to infinity
+                    // this ensures first path to new destination is always accepted
+                    if (currentCost == null) currentCost = Integer.MAX_VALUE;
+                    
+                    // Bellman-Ford - if new path is cheaper than current path
+                    if (newCost < currentCost) {
+                        // update routing table with new, lower cost to destination
+                        routingTable.put(destNode, newCost);
+                        
+                        // update next hop table to route through viaNode to reach destNode
+                        // this records that to reach destNode, we should forward to viaNode
+                        nextHopTable.put(destNode, viaNode);
+                    }
+                 }
     
 
     private void start() {

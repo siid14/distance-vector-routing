@@ -56,7 +56,7 @@ public class distanceVector {
             @Override
             public void run() {
                 sendDistanceVectorUpdates();
-                checkNeighborTimeout();
+               // checkNeighborTimeout();
             }
         }, 0, updateInterval * 1000); // Convert seconds to milliseconds
     }

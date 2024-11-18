@@ -62,7 +62,7 @@ public class distanceVector {
     }
 
     private void checkNeighborTimeout() {
-        System.out.println("Checking neighbor timeouts");
+        // System.out.println("Checking neighbor timeouts");
         // get current time to be compare with the last update times
         long currentTime = System.currentTimeMillis();
         long timeout = updateInterval * 3000; // 3 intervals in milliseconds
@@ -89,7 +89,7 @@ public class distanceVector {
     // Send updates to all neighbors
     private void sendDistanceVectorUpdates() {
         try {
-            System.out.println("Sending updates to neighbors: " + neighbors);
+            // System.out.println("Sending updates to neighbors: " + neighbors);
             byte[] updateMessage = createUpdateMessage(); // create message once
             
             // send same message to each neighbor
@@ -108,7 +108,7 @@ public class distanceVector {
                     serverSocket.send(packet);
                 }
             }
-            System.out.println("Updates sent successfully");
+            // System.out.println("Updates sent successfully");
         } catch (IOException e) {
             System.err.println("Error sending updates: " + e.getMessage());
         }

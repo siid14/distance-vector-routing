@@ -378,8 +378,8 @@ public class distanceVector {
             while (true) { // Continuously listen for messages
                 // Wait until a packet is received
                 serverSocket.receive(receivePacket);
-                
-                // Increment packet counter
+
+                // Count received packets for the 'packets' command
                 packetsReceived.incrementAndGet();
     
                 // Extract the message as a UTF-8 string

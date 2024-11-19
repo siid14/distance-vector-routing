@@ -555,9 +555,15 @@ public class distanceVector {
                             }
                            
                             break;
-                        case "step": // force immediate updatesv
+                        case "step": // force immediate updates
+                        System.out.println("Sending routing update to neighbors....");
+                        // Manually trigger updates by passing periodic updates
+                        sendDistanceVectorUpdates(); 
+                        System.out.println("Routing update sent.");
                             break;
                         case "packets": // show received packet count
+                            System.out.println("Packets received since last check: " + packetsReceived.get());
+                            packetsReceived.set(0); // Reset the counter
                             break;
                         case "display": // disable specific link
                             displayRoutingTable();

@@ -423,6 +423,8 @@ public class distanceVector {
                         System.out.println("Routing update sent.");
                             break;
                         case "packets": // show received packet count
+                            System.out.println("Packets received since last check: " + packetsReceived.get());
+                            packetsReceived.set(0); // Reset the counter
                             break;
                         case "display": // disable specific link
                             displayRoutingTable();

@@ -379,6 +379,8 @@ public class distanceVector {
                 // Wait until a packet is received
                 serverSocket.receive(receivePacket);
                 
+                // Increment packet counter
+                packetsReceived.incrementAndGet();
     
                 // Extract the message as a UTF-8 string
                 String message = new String(receivePacket.getData(), 0, receivePacket.getLength(), StandardCharsets.UTF_8);

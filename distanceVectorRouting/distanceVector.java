@@ -416,7 +416,11 @@ public class distanceVector {
                             int serverId2 = Integer.parseInt(parts[2]);
                             int linkCost = Integer.parseInt(parts[3]);
                             break;
-                        case "step": // force immediate updatesv
+                        case "step": // force immediate updates
+                        System.out.println("Sending routing update to neighbors....");
+                        // Manually trigger updates by passing periodic updates
+                        sendDistanceVectorUpdates(); 
+                        System.out.println("Routing update sent.");
                             break;
                         case "packets": // show received packet count
                             break;

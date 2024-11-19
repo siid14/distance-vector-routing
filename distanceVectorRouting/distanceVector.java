@@ -8,10 +8,12 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Timer;
@@ -201,16 +203,15 @@ public class distanceVector {
     
     private void initializeServer() {
         try {
-            // create UDP socket bound to this server's port
+            System.out.println("Initializing server on port: " + serverPort);
             serverSocket = new DatagramSocket(serverPort);
-            System.out.println("Server " + serverId + " initialized");
-            System.out.println("Initial neighbors: " + neighbors);
-            System.out.println("Initial routing table: " + routingTable);
+            System.out.println("Server successfully started on port: " + serverPort);
         } catch (Exception e) {
-            System.err.println("Failed to initialize server: " + e.getMessage());
+            System.err.println("Failed to initialize server on port " + serverPort + ": " + e.getMessage());
             System.exit(1);
         }
     }
+    
     
   
     private void loadTopology(String filename) {
@@ -267,88 +268,218 @@ public class distanceVector {
         }
     }
     
-    private void listenForMessages() {
+   /* private void listenForMessages() {
         try {
-
-            
-            // create buffer and packet for receiving messages (data)
+            // Create buffer and packet for receiving messages
             byte[] receiveBuffer = new byte[1024];
             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-            
-            while (true) { // continuously listen for messages
+    
+            while (true) { // Continuously listen for messages
                 // * 1 LISTEN - WAIT FOR AND RECEIVE INCOMING MESSAGES
-                // wait until a packet is received
+                // Wait until a packet is received
                 serverSocket.receive(receivePacket);
-                
-                // count rceived packets for 'packets' command
+    
+                // Count received packets for the 'packets' command
                 packetsReceived.incrementAndGet();
-
-                // * 2 GET MESSAGE DATA - CONVERRT DATA TO READABLE FORMAT
-                // convert received data into ByteBuffer for easier parsing
+    
+                // * 2 GET MESSAGE DATA - CONVERT DATA TO READABLE FORMAT
+                // Convert received data into ByteBuffer for easier parsing
                 ByteBuffer buffer = ByteBuffer.wrap(receivePacket.getData(), 0, receivePacket.getLength());
-                
+    
                 try {
                     // * 3 READ MESSAGE HEADER - GET SENDER INFO
-                    // parse message header according to specific format
-
-                    // first 2 bytes: number of updates i this msg
+                    // Parse message header according to specific format
+    
+                    // first 2 bytes: number of updates in this message
                     short numUpdates = buffer.getShort();
-
-                    // next 2bytes: sender port number
+    
+                    // next 2 bytes: sender port number
                     short senderPort = buffer.getShort();
-
+    
                     // next 4 bytes: sender IP address
                     byte[] ipBytes = new byte[4];
                     buffer.get(ipBytes);
                     InetAddress senderIP = InetAddress.getByAddress(ipBytes);
-                    
+    
                     // * 4 IDENTIFY SENDER - COMPARE WITH KNOWN SERVERS
-                    // find which server sent this message by matching IP and port
+                    // Find which server sent this message by matching IP and port
                     int senderId = -1;
                     for (Map.Entry<Integer, ServerInfo> entry : serverInfo.entrySet()) {
-
-                        // check if this server's port and IP match the sender's
-                        if (entry.getValue().port == senderPort && // compare ports
-                            entry.getValue().ip.equals(senderIP.getHostAddress())) { // compare IP addresses
-                            
-                            // if we found a match, store the server ID and exit loop
-                            senderId = entry.getKey();  // get the ID of the sending server
-                            break; // no need to check other servers
+                        // Check if this server's port and IP match the sender's
+                        if (entry.getValue().port == senderPort &&
+                            entry.getValue().ip.equals(senderIP.getHostAddress())) {
+                            // If we found a match, store the server ID and exit loop
+                            senderId = entry.getKey();
+                            break; // No need to check other servers
                         }
                     }
-
-                    // * 5 PROCESS MESSAGE - IF SERVER FOUND -> PROCESS MESSAGE UDPATE
-                    if (senderId != -1) {  // If we found the sender
-                        // print required message
+    
+                    // * 5 PROCESS MESSAGE - IF SERVER FOUND -> PROCESS MESSAGE UPDATE
+                    if (senderId != -1) { // If we found the sender
                         System.out.println("RECEIVED A MESSAGE FROM SERVER " + senderId);
-                        
-                        // update timestamp for neighbor timeout detection
+    
+                        // Update timestamp for neighbor timeout detection
                         lastUpdateTime.put(senderId, System.currentTimeMillis());
-                        
-                        // * 6 READ UPDATES MSG - PROCESS EACH UPDATE IN THE MESSAGE
-                        // process each update in the message
-                        for (int i = 0; i < numUpdates; i++) {
-                            // read destination server information:
-                            buffer.get(ipBytes);           // IP address (4 bytes)
-                            short destPort = buffer.getShort();  // port (2 bytes)
-                            buffer.getShort();             // skip padding (2 bytes)
-                            short destId = buffer.getShort();    // server ID (2 bytes)
-                            short cost = buffer.getShort();      // cost (2 bytes)
 
+                        System.out.println("Raw packet data: " + Arrays.toString(receivePacket.getData()));
 
-                            // * 7 APPLY BELLMAN-FORD EQUATION - UPDATE ROUTING TABLE
-                            updateRoutingTable(senderId, destId, cost);
-                             
+                        // Process UPDATE messages
+                        String message = new String(receivePacket.getData(), 0, receivePacket.getLength(),StandardCharsets.UTF_8);
+
+                        System.out.println("Received message: " + message);
+
+                        if (message.startsWith("UPDATE")) {
+                            String[] parts = message.split(" ");
+                            int sourceId = Integer.parseInt(parts[1]);
+                            int targetId = Integer.parseInt(parts[2]);
+                            int newCost = Integer.parseInt(parts[3]);
+    
+                            // Ensure the message is intended for this server
+                            if (targetId == serverId) {
+                                System.out.println("Received link update from server " + sourceId + ".");
+                                
+                                // Update routing table and next hop for sourceId
+                                neighbors.put(sourceId, newCost);
+                                if (newCost == Integer.MAX_VALUE) {
+                                    routingTable.put(sourceId, Integer.MAX_VALUE); // Mark as unreachable
+                                    nextHopTable.remove(sourceId); // Remove from next hop table
+                                } else {
+                                    routingTable.put(sourceId, newCost); // Update cost
+                                    nextHopTable.put(sourceId, sourceId); // Direct link
                                 }
+    
+                                System.out.println("Routing table updated for link to server " + sourceId + ".");
                             }
-                        } catch (Exception e) {
-                            System.err.println("Error processing message: " + e.getMessage());
+                        } else {
+                            // * 6 READ UPDATES MESSAGE - PROCESS EACH UPDATE IN THE MESSAGE
+                            for (int i = 0; i < numUpdates; i++) {
+                                // Read destination server information:
+                                buffer.get(ipBytes);             // IP address (4 bytes)
+                                short destPort = buffer.getShort();  // Port (2 bytes)
+                                buffer.getShort();               // Skip padding (2 bytes)
+                                short destId = buffer.getShort();    // Server ID (2 bytes)
+                                short cost = buffer.getShort();      // Cost (2 bytes)
+    
+                                // * 7 APPLY BELLMAN-FORD EQUATION - UPDATE ROUTING TABLE
+                                updateRoutingTable(senderId, destId, cost);
+                            }
                         }
                     }
-                } catch (IOException e) {
-                    System.err.println("Error receiving message: " + e.getMessage());
+                } catch (Exception e) {
+                    System.err.println("Error processing message: " + e.getMessage());
                 }
+            }
+        } catch (IOException e) {
+            System.err.println("Error receiving message: " + e.getMessage());
+        }
     }
+    */ 
+    private void listenForMessages() {
+        try {
+            // Create buffer and packet for receiving messages
+            byte[] receiveBuffer = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+    
+            while (true) { // Continuously listen for messages
+                // Wait until a packet is received
+                serverSocket.receive(receivePacket);
+
+                // Count received packets for the 'packets' command
+                packetsReceived.incrementAndGet();
+    
+                // Extract the message as a UTF-8 string
+                String message = new String(receivePacket.getData(), 0, receivePacket.getLength(), StandardCharsets.UTF_8);
+                System.out.println("Received message: " + message);
+    
+                // Check if the message is an UPDATE command 
+                if (message.startsWith("UPDATE")) {
+                    processUpdateMessage(message);
+                } else {
+                    // Otherwise, parse it as a binary distance vector update
+                    ByteBuffer buffer = ByteBuffer.wrap(receivePacket.getData(), 0, receivePacket.getLength());
+                    processDistanceVectorUpdate(buffer, receivePacket);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error receiving message: " + e.getMessage());
+        }
+    }
+
+    /* HELPER FUNCTION TO CHECK IF THE MESSAGE IS TO UPDATE A ROUTING TABLE */
+    private void processUpdateMessage(String message) {
+        try {
+            // Parse the UPDATE message
+            String[] parts = message.split(" ");
+            int sourceId = Integer.parseInt(parts[1]);
+            int targetId = Integer.parseInt(parts[2]);
+            int newCost = Integer.parseInt(parts[3]);
+    
+            // Ensure the message is for this server
+            if (targetId == serverId) {
+                System.out.println("Received UPDATE message from server " + sourceId);
+    
+                // Update routing table and next hop
+                neighbors.put(sourceId, newCost);
+                if (newCost == Integer.MAX_VALUE) {
+                    routingTable.put(sourceId, Integer.MAX_VALUE); // Mark as unreachable
+                    nextHopTable.remove(sourceId); // Remove from next hop table
+                } else {
+                    routingTable.put(sourceId, newCost); // Update cost
+                    nextHopTable.put(sourceId, sourceId); // Direct link
+                }
+    
+                System.out.println("Routing table updated for link to server " + sourceId);
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing UPDATE message: " + e.getMessage());
+        }
+    }
+
+    /* HELPER FUNCTION TO PARSE DISTANCE VECTOR UPDATES */
+    private void processDistanceVectorUpdate(ByteBuffer buffer, DatagramPacket receivePacket) {
+        try {
+            // Parse sender information
+            byte[] ipBytes = new byte[4];
+            buffer.get(ipBytes);
+            InetAddress senderIP = InetAddress.getByAddress(ipBytes);
+            short senderPort = buffer.getShort();
+    
+            // Identify the sender ID
+            int senderId = -1;
+            for (Map.Entry<Integer, ServerInfo> entry : serverInfo.entrySet()) {
+                if (entry.getValue().port == senderPort &&
+                    entry.getValue().ip.equals(senderIP.getHostAddress())) {
+                    senderId = entry.getKey();
+                    break;
+                }
+            }
+    
+            if (senderId == -1) {
+                System.out.println("Unknown sender. Ignoring message.");
+                return;
+            }
+    
+            System.out.println("Distance vector update received from server " + senderId);
+    
+            // Parse distance vector updates
+            short numUpdates = buffer.getShort();
+            for (int i = 0; i < numUpdates; i++) {
+                buffer.get(ipBytes);                // Destination IP
+                short destPort = buffer.getShort(); // Destination port
+                buffer.getShort();                  // Padding
+                short destId = buffer.getShort();   // Destination ID
+                short cost = buffer.getShort();     // Cost
+    
+                // Apply Bellman-Ford algorithm to update routing table
+                updateRoutingTable(senderId, destId, cost);
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing distance vector update: " + e.getMessage());
+        }
+    }
+    
+    
+    
 
                 // * 8 BELLMAN-FORD: Update routing if better path found
                 private void updateRoutingTable(int viaNode, int destNode, int receivedCost) {
@@ -412,9 +543,17 @@ public class distanceVector {
                                 System.out.println("Usage: update <server ID 1> <server ID 2> <Link Cost>");
                                 break;
                             }
-                            int serverId1 = Integer.parseInt(parts[1]);
-                            int serverId2 = Integer.parseInt(parts[2]);
-                            int linkCost = Integer.parseInt(parts[3]);
+                            try{
+                                int serverId1 = Integer.parseInt(parts[1]);
+                                int serverId2 = Integer.parseInt(parts[2]);
+                                int linkCost = parts[3].equalsIgnoreCase("inf") 
+                       ? Integer.MAX_VALUE 
+                       : Integer.parseInt(parts[3]);
+                       handleUpdateCommand(serverId1, serverId2, linkCost);
+                            }catch(NumberFormatException e){
+                                System.out.println("Invalid input. Link cost must be a number or 'inf'.");
+                            }
+                           
                             break;
                         case "step": // force immediate updatesv
                             break;
@@ -465,11 +604,17 @@ public class distanceVector {
         System.out.println("\tcrash: Close” all connections. This is to simulate server crashes. Close all connections on all links. The neighboring servers must handle this close correctly and set the link cost to infinity.\n");
     }
 
+
+    /* DISPLAY THE CURRENT ROUTING TABLE */
     private void displayRoutingTable() {
         System.out.println("Routing Table:");
         System.out.println("Destination | Next Hop | Cost");
+
+        //retrieve all destination keys
         routingTable.keySet().stream()
+            //sort by smallest to biggest id
             .sorted()
+            //for each destination key get the next hop and it's cost
             .forEach(dest -> {
                 int nextHop = nextHopTable.get(dest);
                 int cost = routingTable.get(dest);
@@ -477,47 +622,70 @@ public class distanceVector {
             });
     }
 
-    private void handleDisable(int disableServerId) {
-        System.out.println("Disabling connection to server " + disableServerId);
-        // * FIRST VERIFY IF THE SERVE IS A NEIGHBOR
-        // check if disableServerId exists in neighbors map
-        if (!neighbors.containsKey(disableServerId)) {
-            // if not a neighbor, can't disable connection
-            System.out.println("disable FAILED: Not a neighbor");
+    /* MODIFY THE COST OF A TWO DIRECT SERVERS */
+    // modifies both servers routing tables
+    private void handleUpdateCommand(int serverId1, int serverId2, int linkCost) {
+
+        //Check if the serverId1 is not the same as the current server running
+        if (serverId1 != serverId) {
+            System.out.println("Error: This server (" + serverId + ") is not server " + serverId1 + ".");
+            return;
+        }
+        
+        //Check if serverId2 is a not direct neighbor
+        if (!neighbors.containsKey(serverId2)) {
+            System.out.println("Error: Server " + serverId2 + " is not a neighbor.");
             return;
         }
     
-        // * IF ITS A NEIGHBOR, DISABLE THE LINK
-        // Set cost in routing table to infinity (unreachable)
-        routingTable.put(disableServerId, Integer.MAX_VALUE);
-
-        // keep neighbor but set cost to infinity
-        // this maintains record of neighbor but marks link as unusable
-        neighbors.put(disableServerId, Integer.MAX_VALUE);  
-
-        System.out.println("Updated routing table: " + routingTable);
-        System.out.println("Updated neighbors: " + neighbors);
-        
-        System.out.println("disable SUCCESS");
+        //update sourceID routing table
+        neighbors.put(serverId2, linkCost);
+        if (linkCost == Integer.MAX_VALUE) {
+            System.out.println("Disabling link to server " + serverId2 + ".");
+            routingTable.put(serverId2, Integer.MAX_VALUE); // Mark as unreachable
+            nextHopTable.remove(serverId2); // Remove from next hop table
+        } else {
+            System.out.println("Updating link cost to server " + serverId2 + " to " + linkCost + ".");
+            routingTable.put(serverId2, linkCost); // Update cost
+            nextHopTable.put(serverId2, serverId2); // Direct link
+        }
+    
+        // Notify server-ID2 to update its routing table
+        sendDirectUpdateToServer(serverId2, serverId1, linkCost);
+    
+        // Send updated distance vector to neighbors
+        sendDistanceVectorUpdates();
+    
+         System.out.println("Updated link cost between " + serverId1 + " and " + serverId2 + " to " + linkCost);
     }
 
-    private void handleCrash() {
-        System.out.println("Initiating server crash");
-        // set all link costs to infinity for neighbors to detect
-        for (int neighborId : neighbors.keySet()) {
-            routingTable.put(neighborId, Integer.MAX_VALUE);
-            neighbors.put(neighborId, Integer.MAX_VALUE);
+    /* HELPER METHOD FOR UPDATE COMMAND TO UPDATE DESTINATION ROUTING TABLE */
+    private void sendDirectUpdateToServer(int targetServerId, int sourceServerId, int linkCost) {
+        try {
+            ServerInfo targetServerInfo = serverInfo.get(targetServerId);
+            if (targetServerInfo != null) {
+                // Create a simple message indicating the link update
+                String message = "UPDATE " + sourceServerId + " " + targetServerId + " " + linkCost;
+                byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
+    
+                // Send the message to targetServerId
+                DatagramPacket packet = new DatagramPacket(
+                    messageBytes,
+                    messageBytes.length,
+                    InetAddress.getByName(targetServerInfo.ip),
+                    targetServerInfo.port
+                );
+                serverSocket.send(packet);
+                System.out.println("Sent update command to server " + targetServerId);
+            }
+        } catch (IOException e) {
+            System.err.println("Error sending update to server " + targetServerId + ": " + e.getMessage());
         }
-        
-        // close the socket to simulate crash
-        if (serverSocket != null) {
-            serverSocket.close();
-        }
-        
-        System.out.println("Final routing table: " + routingTable);
-        System.out.println("crash SUCCESS");
-        System.exit(0); 
     }
+    
+    
+
+
 
     public static void main(String[] args) {
         // * Validate command line arguments:

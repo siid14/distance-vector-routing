@@ -596,6 +596,50 @@ public class distanceVector {
             }
         }
     }
+
+
+    private void handleDisable(int disableServerId) {
+        System.out.println("Disabling connection to server " + disableServerId);
+        // * FIRST VERIFY IF THE SERVE IS A NEIGHBOR
+        // check if disableServerId exists in neighbors map
+        if (!neighbors.containsKey(disableServerId)) {
+            // if not a neighbor, can't disable connection
+            System.out.println("disable FAILED: Not a neighbor");
+            return;
+        }
+    
+        // * IF ITS A NEIGHBOR, DISABLE THE LINK
+        // Set cost in routing table to infinity (unreachable)
+        routingTable.put(disableServerId, Integer.MAX_VALUE);
+
+        // keep neighbor but set cost to infinity
+        // this maintains record of neighbor but marks link as unusable
+        neighbors.put(disableServerId, Integer.MAX_VALUE);  
+
+        System.out.println("Updated routing table: " + routingTable);
+        System.out.println("Updated neighbors: " + neighbors);
+        
+        System.out.println("disable SUCCESS");
+    }
+
+    private void handleCrash() {
+        System.out.println("Initiating server crash");
+        // set all link costs to infinity for neighbors to detect
+        for (int neighborId : neighbors.keySet()) {
+            routingTable.put(neighborId, Integer.MAX_VALUE);
+            neighbors.put(neighborId, Integer.MAX_VALUE);
+        }
+        
+        // close the socket to simulate crash
+        if (serverSocket != null) {
+            serverSocket.close();
+        }
+        
+        System.out.println("Final routing table: " + routingTable);
+        System.out.println("crash SUCCESS");
+        System.exit(0); 
+    }
+    
     private void displayHelp(){
         System.out.println("Information about built in commands: \n\n");
         System.out.println("\thelp: Displays information about the available user interface options or manual.\n");

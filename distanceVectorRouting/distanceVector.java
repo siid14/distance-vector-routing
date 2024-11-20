@@ -64,7 +64,7 @@ public class distanceVector {
     }
 
     private void checkNeighborTimeout() {
-        System.out.println("Checking neighbor timeouts");
+        // System.out.println("Checking neighbor timeouts");
         // get current time to be compare with the last update times
         long currentTime = System.currentTimeMillis();
         long timeout = updateInterval * 3000; // 3 intervals in milliseconds
@@ -91,7 +91,7 @@ public class distanceVector {
     // Send updates to all neighbors
     private void sendDistanceVectorUpdates() {
         try {
-            System.out.println("Sending updates to neighbors: " + neighbors);
+            // System.out.println("Sending updates to neighbors: " + neighbors);
             byte[] updateMessage = createUpdateMessage(); // create message once
             
             // send same message to each neighbor
@@ -110,7 +110,7 @@ public class distanceVector {
                     serverSocket.send(packet);
                 }
             }
-            System.out.println("Updates sent successfully");
+            // System.out.println("Updates sent successfully");
         } catch (IOException e) {
             System.err.println("Error sending updates: " + e.getMessage());
         }
@@ -375,36 +375,71 @@ public class distanceVector {
     }
     */ 
     private void listenForMessages() {
-        try {
-            // Create buffer and packet for receiving messages
-            byte[] receiveBuffer = new byte[1024];
-            DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+        byte[] receiveBuffer = new byte[1024];
+        DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
     
-            while (true) { // Continuously listen for messages
-                // Wait until a packet is received
+        while (true) {
+            try {
+                // Clear the buffer before each receive
+                Arrays.fill(receiveBuffer, (byte) 0);
+                
+                // Receive packet
                 serverSocket.receive(receivePacket);
-
-                // Count received packets for the 'packets' command
                 packetsReceived.incrementAndGet();
     
-                // Extract the message as a UTF-8 string
-                String message = new String(receivePacket.getData(), 0, receivePacket.getLength(), StandardCharsets.UTF_8);
-                System.out.println("Received message: " + message);
+                // First try to process as a binary distance vector update
+                ByteBuffer buffer = ByteBuffer.wrap(receivePacket.getData(), 0, receivePacket.getLength());
+                
+                // Read header fields
+                short numUpdates = buffer.getShort();
+                short senderPort = buffer.getShort();
+                
+                // If these values make sense (non-negative and reasonable size)
+                if (numUpdates >= 0 && numUpdates < 100 && senderPort > 0) {
+                    byte[] ipBytes = new byte[4];
+                    buffer.get(ipBytes);
+                    InetAddress senderIP = InetAddress.getByAddress(ipBytes);
     
-                // Check if the message is an UPDATE command 
-                if (message.startsWith("UPDATE")) {
-                    processUpdateMessage(message);
+                    // Find sender ID
+                    int senderId = -1;
+                    for (Map.Entry<Integer, ServerInfo> entry : serverInfo.entrySet()) {
+                        ServerInfo info = entry.getValue();
+                        if (info.port == senderPort && 
+                            info.ip.equals(senderIP.getHostAddress())) {
+                            senderId = entry.getKey();
+                            break;
+                        }
+                    }
+    
+                    if (senderId != -1) {
+                        // System.out.println("RECEIVED A MESSAGE FROM SERVER " + senderId);
+                        lastUpdateTime.put(senderId, System.currentTimeMillis());
+    
+                        // Process updates
+                        for (int i = 0; i < numUpdates && buffer.remaining() >= 12; i++) {
+                            buffer.get(ipBytes);
+                            short destPort = buffer.getShort();
+                            buffer.getShort(); // Skip padding
+                            short destId = buffer.getShort();
+                            short cost = buffer.getShort();
+    
+                            updateRoutingTable(senderId, destId, cost);
+                        }
+                    }
                 } else {
-                    // Otherwise, parse it as a binary distance vector update
-                    ByteBuffer buffer = ByteBuffer.wrap(receivePacket.getData(), 0, receivePacket.getLength());
-                    processDistanceVectorUpdate(buffer, receivePacket);
+                    // Try to process as text UPDATE message
+                    String message = new String(receivePacket.getData(), 0, receivePacket.getLength(), StandardCharsets.UTF_8).trim();
+                    if (message.startsWith("UPDATE")) {
+                        processUpdateMessage(message);
+                    }
                 }
+            } catch (Exception e) {
+                // Just log the error and continue listening
+                System.err.println("Error processing packet: " + e.getMessage());
+                continue;
             }
-        } catch (IOException e) {
-            System.err.println("Error receiving message: " + e.getMessage());
         }
     }
-
     /* HELPER FUNCTION TO CHECK IF THE MESSAGE IS TO UPDATE A ROUTING TABLE */
     private void processUpdateMessage(String message) {
         try {
@@ -502,13 +537,13 @@ public class distanceVector {
                     // this ensures first path to new destination is always accepted
                     if (currentCost == null) currentCost = Integer.MAX_VALUE;
                     
-                    System.out.println("Route update - via: " + viaNode + 
-                    ", to: " + destNode + 
-                    ", cost: " + receivedCost);
+                    // System.out.println("Route update - via: " + viaNode + 
+                    // ", to: " + destNode + 
+                    // ", cost: " + receivedCost);
                     // Bellman-Ford - if new path is cheaper than current path
                     if (newCost < currentCost) {
-                        System.out.println("Route improved - New cost: " + newCost + 
-                          " (previous: " + currentCost + ")");
+                        // System.out.println("Route improved - New cost: " + newCost + 
+                        //   " (previous: " + currentCost + ")");
 
                         // update routing table with new, lower cost to destination
                         routingTable.put(destNode, newCost);

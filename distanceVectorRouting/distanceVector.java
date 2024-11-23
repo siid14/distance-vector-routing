@@ -505,10 +505,11 @@ public class distanceVector {
                             int disableServerId = Integer.parseInt(parts[1]);
                             handleDisable(disableServerId);
                             break;
-                        case "crash":
+                           
+                        case "crash":  // simulate server crash
                             handleCrash();
                             break;
-                        default:
+                        default: // unknown command
                             System.out.println("Unknown command. Here's the list of commands");
                             displayHelp();
                             break;

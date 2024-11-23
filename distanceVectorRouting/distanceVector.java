@@ -116,8 +116,9 @@ public class distanceVector {
         }
     }
 
-     // create the update message in specified format
+    // create the update message in specified format
     private byte[] createUpdateMessage() throws IOException {
+        // using ByteBuffer library to create byte arrays
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(baos);
         
@@ -410,11 +411,11 @@ public class distanceVector {
                             break;
                         }
                     }
-    
+                
                     if (senderId != -1) {
                         // System.out.println("RECEIVED A MESSAGE FROM SERVER " + senderId);
                         lastUpdateTime.put(senderId, System.currentTimeMillis());
-    
+                        
                         // Process updates
                         for (int i = 0; i < numUpdates && buffer.remaining() >= 12; i++) {
                             buffer.get(ipBytes);
@@ -425,6 +426,7 @@ public class distanceVector {
     
                             updateRoutingTable(senderId, destId, cost);
                         }
+            
                     }
                 } else {
                     // Try to process as text UPDATE message
@@ -512,9 +514,6 @@ public class distanceVector {
             System.err.println("Error processing distance vector update: " + e.getMessage());
         }
     }
-    
-    
-    
 
                 // * 8 BELLMAN-FORD: Update routing if better path found
                 private void updateRoutingTable(int viaNode, int destNode, int receivedCost) {

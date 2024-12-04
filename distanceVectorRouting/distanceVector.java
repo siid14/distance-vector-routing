@@ -88,18 +88,17 @@ public class distanceVector {
     }
     
    
-    // Send updates to all neighbors
     private void sendDistanceVectorUpdates() {
         try {
-            // System.out.println("Sending updates to neighbors: " + neighbors);
-            byte[] updateMessage = createUpdateMessage(); // create message once
-            
-            // send same message to each neighbor
+            byte[] updateMessage = createUpdateMessage();
+    
             for (Map.Entry<Integer, Integer> neighbor : neighbors.entrySet()) {
-                 // create and send UDP packet to this neighbor
                 int neighborId = neighbor.getKey();
                 ServerInfo neighborInfo = serverInfo.get(neighborId);
-                
+    
+                // Skip sending updates to servers marked as unreachable
+                if (neighbor.getValue() == Integer.MAX_VALUE) continue;
+    
                 if (neighborInfo != null) {
                     DatagramPacket packet = new DatagramPacket(
                         updateMessage,
@@ -110,12 +109,12 @@ public class distanceVector {
                     serverSocket.send(packet);
                 }
             }
-            // System.out.println("Updates sent successfully");
         } catch (IOException e) {
             System.err.println("Error sending updates: " + e.getMessage());
         }
     }
-
+    
+    
     // create the update message in specified format
     private byte[] createUpdateMessage() throws IOException {
         // using ByteBuffer library to create byte arrays
@@ -410,43 +409,22 @@ public class distanceVector {
         }
     }
 
-                // * 8 BELLMAN-FORD: Update routing if better path found
-                private void updateRoutingTable(int viaNode, int destNode, int receivedCost) {
-                    // get the cost to reach the neighbor (viaNode) from our routing table
-                    // viaNode: the server that sent us the update
-                    Integer costToVia = neighbors.get(viaNode);
-                    
-                    // if this node isn't our neighbor, ignore the update
-                    // this prevents updates from non-neighboring nodes
-                    if (costToVia == null) return;
-                    
-                    // calculate total cost to reach destNode through viaNode
-                    // total cost = (our cost to reach neighbor) + (neighbor's cost to reach destination)
-                    int newCost = costToVia + receivedCost;  
-                    
-                    // get our current known cost to reach destNode
-                    Integer currentCost = routingTable.get(destNode);
-                    
-                    // if we never seen this destination before, set current cost to infinity
-                    // this ensures first path to new destination is always accepted
-                    if (currentCost == null) currentCost = Integer.MAX_VALUE;
-                    
-                    // System.out.println("Route update - via: " + viaNode + 
-                    // ", to: " + destNode + 
-                    // ", cost: " + receivedCost);
-                    // Bellman-Ford - if new path is cheaper than current path
-                    if (newCost < currentCost) {
-                        // System.out.println("Route improved - New cost: " + newCost + 
-                        //   " (previous: " + currentCost + ")");
-
-                        // update routing table with new, lower cost to destination
-                        routingTable.put(destNode, newCost);
-                        
-                        // update next hop table to route through viaNode to reach destNode
-                        // this records that to reach destNode, we should forward to viaNode
-                        nextHopTable.put(destNode, viaNode);
-                    }
-                 }
+    private void updateRoutingTable(int viaNode, int destNode, int receivedCost) {
+        if (receivedCost == Integer.MAX_VALUE) return; // Skip updates with infinity cost
+    
+        Integer costToVia = neighbors.get(viaNode);
+        if (costToVia == null) return;
+    
+        int newCost = costToVia + receivedCost;
+        Integer currentCost = routingTable.get(destNode);
+        if (currentCost == null) currentCost = Integer.MAX_VALUE;
+    
+        if (newCost < currentCost) {
+            routingTable.put(destNode, newCost);
+            nextHopTable.put(destNode, viaNode);
+        }
+    }
+    
     
 
     private void start() {
